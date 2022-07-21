@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>CPI Urban</title>
+        <script type="text/javascript" src="js/menuInfo.js"></script>
+        <script type="text/javascript" src="js/itemsInfo.js"></script>
+        <script type="text/javascript" src="js/stdItemsInfo.js"></script>
+        <script>
+		function openMenu(evt, menuNo)
+		{	var i, x, tablinks;
+			// Hide All Menus
+			x = document.getElementsByClassName("MENU");
+			for (i = 0; i < x.length; i++)  x[i].style.display = "none"; 
+			// Remove and Set Selected Tab Colour
+			tablinks = document.getElementsByClassName("tablink");
+			for (i = 0; i < x.length; i++) tablinks[i].className = tablinks[i].className.replace(" w3-red", "");
+			document.getElementById('menu'+menuNo).style.display = "block";
+			evt.currentTarget.className += " w3-red";
+			document.getElementById('menuTitle'+menuNo).innerText=programInfo[menuNo]
+		}
+	
+
+		VariationCSS='color:red; font-weight:bold'
+		LastChangeCSS='color:red; font-weight:bold'
+		UnChangedCSS = 'color:black; font-weight:normal'
+		ITEMScode = Object.keys(itemsInfo["itemname"])
+		
+		colName = [ 'S.No.', 'Item', 'Qty', 'Unit', 'Price', 'Last Month Price', 'Variation', 'Remarks', 'Spl.Code', 'Prev.Price1', 'Prev.Price2' ]
+		colWidth= [   3,       20,     3,     3,      20,         10,             5,         20   ,      20,            8,             8       ]
+
+		itemSNO={}; n=1 // Store SNo of Item Code
+		for (icode in itemsInfo["itemname"])  itemSNO[icode] = n++
+
+		RemarksMenu = ''; SplCodeMenu=''
+		for (remark in itemsInfo['remarks']) RemarksMenu+='<option value="'+itemsInfo['remarks'][remark]+'">'+remark+'</option>'  
+		for (splcode in stdItemsInfo['specialCodes']) SplCodeMenu+='<option value="'+splcode+'">'+stdItemsInfo['specialCodes'][splcode]+'</option>'
+			
+		
+		function LastChange(date)
+		{	tDiff = Date.now() - Date.parse(date)
+			days = tDiff/(86400*1000); months = Math.round((days/30) * 10)/10;  hrs=Math.round((tDiff/(3600*1000)) * 10)/10
+			if (hrs<1)  timeAgo = Math.round((tDiff/(60*1000))) + ' min.ago'
+			else if (days<1)  timeAgo = hrs + ' Hrs.ago'
+			else if ((days < 31)&&(days < 31))  timeAgo = Math.round(days * 10)/10  + ' Dys.ago'
+			else if ((31<= days) && (days <= 365)) timeAgo = Math.round((days/30) * 10)/10 + ' Mth.ago'
+			else timeAgo = Math.round((days/365) * 10)/10 + ' Yrs.ago'
+			// Set Colour based on Last Changes
+			if  (timeAgo.includes('min.ago')||timeAgo.includes('Hrs.ago')||timeAgo.includes('Dys.ago')||(months<2)) ChangeCSS = 'color:green; font-weight:bold'
+			else if (months>5) ChangeCSS = LastChangeCSS
+			else ChangeCSS = UnChangedCSS
+
+			return [ timeAgo, ChangeCSS ]
+		}
+		
+		function optionMenuTitle(count,html=1,id='')
+		{	Title=' - Select Item ('+count+') - ' ; Id = (id=='') ? '' : 'id='+id
+			return  (html==1) ? '<option '+Id+' value="000000">'+Title+'</option>' : Title
+		}
+		
+		
+		function setRemarks(code)
+		{	// Show Variation
+			cprice = document.getElementById(code+'_price').value
+		 	price = document.getElementById(code+'_date').innerText.split(': ₹ ')[1]
+			variation = ((cprice-price)/price)*100
+			varArrow=''
+			if  (Math.abs(variation)>0)  varArrow = ((variation)>0) ? '▲' : '▼'
+			setRemark = (Math.abs(variation) > 10) ? '👉' : ''
+			document.getElementById(code+'_variation').innerText = Math.round(variation * 10)/10 + ' % '+varArrow+setRemark
+			
+				
+			if  (Math.abs(variation) == 0)  document.getElementById(code+'_remarks').value=0 // Reset Remark for 0 Variation
+				
+			// Set Variation Colour & Style
+			if  (Math.abs(variation) > 25) document.getElementById(code+'_variation').style = VariationCSS
+			else document.getElementById(code+'_variation').style = UnChangedCSS
+			
+			// Auto Save
+			sno = ITEMScode.indexOf(code)+1
+			if ((sno%4)==0) SaveData(silent=true)
+		
+		}
+		
+		// Fill Other Fields based on Remarks selection
+		function setRemarkCodes(code)
+		{	splTag = document.getElementById(code+'_splcode')
+			
+			if (document.getElementById(code+'_remarks').value == '03') // On Specification Change Remarks, Set Special code & Prev. Prices
+			  { alert('  '+document.getElementById(code+'_name').innerText+'  Setting Special Code : 2 \n\n   ◉  Enter Prev.Price1 & Prev.Price2.')
+				if (splTag.value != 2)
+				{	splTag.value  = 2
+					document.getElementById(code+'_prevprice1').insertAdjacentHTML("beforeend", '<input type="text" value="0">') 
+					document.getElementById(code+'_prevprice2').insertAdjacentHTML("beforeend", '<input type="text" value="0">') 
+				}
+			  }
+			else if (splTag.value == 2) // In case of other Remarks selection, Reset them
+			    { 	splTag.value = 0
+					document.getElementById(code+'_prevprice1').getElementsByTagName('input')[0].remove()
+					document.getElementById(code+'_prevprice2').getElementsByTagName('input')[0].remove()
+				}
+		}
+		// Create Previous Price box on Setting Special code to 1,2or3.
+		function onchangeSplCode(code)
+		{	splTag = document.getElementById(code+'_splcode')
+			alert(code)
+			if  (splTag.value == 0)
+			{	if (document.getElementById(code+'_prevprice1').innerText)
+				{	document.getElementById(code+'_prevprice1').getElementsByTagName('input')[0].remove()
+					document.getElementById(code+'_prevprice2').getElementsByTagName('input')[0].remove() }
+			}
+			else
+			{	if (document.getElementById(code+'_prevprice1').innerText)
+				{	document.getElementById(code+'_prevprice1').getElementsByTagName('input')[0].remove()
+					document.getElementById(code+'_prevprice2').getElementsByTagName('input')[0].remove() }
+				document.getElementById(code+'_prevprice1').insertAdjacentHTML("beforeend", '<input type="text" value="'+document.getElementById(code+'_price').value+'">') 
+				document.getElementById(code+'_prevprice2').insertAdjacentHTML("beforeend", '<input type="text" value="'+document.getElementById(code+'_price').value+'">') 
+			}
+		}
+		
+		function getDateTime()
+		{  	date = new Date()
+			isoDateTime = new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString()
+			return  isoDateTime.slice(0,-5)
+		}
+		
+		function createSubElement(subEle,subEleValue)
+		{	subElemt = xmlDoc.createElement(subEle);
+			subElemTxt = xmlDoc.createTextNode(subEleValue);
+			subElemt.appendChild(subElemTxt);
+			return 	subElemt					
+		}		
+
+		function getXMLInfo(xmlDoc)
+		{	elements = [...xmlDoc.getElementsByTagName("PTemp")]
+			State = elements[1].getElementsByTagName("stat_code")[0].textContent; Town = elements[1].getElementsByTagName("town_code")[0].textContent
+			Week = elements[1].getElementsByTagName("Week")[0].textContent; QTN = elements[1].getElementsByTagName("quotation_code")[0].textContent; User = elements[1].getElementsByTagName("User")[0].textContent; 
+			month = elements[1].getElementsByTagName("MM")[0].textContent; year = elements[1].getElementsByTagName("YY")[0].textContent
+			//return { 'state':State, 'town':Town, 'week':Week, 'qtn':QTN, 'user':User, 'month':month , 'year':year } // object
+			return  [ State, Town, Week, QTN, User, month, year ] // array
+		}
+		
+		// function getOptionMenu() {}
+		/** id : removeitemtable - for removing selectMenu cell 
+			id : removeitemmenu - for getting selected option
+			id : removeitbutton - for inserting html 
+			// First Time Load : Pass refresh=0, xmlItems= xml items array
+		**/
+		function removeItemMenu(refresh=0,xmlItems='')
+		{	RemoveItemsOpt=[]; ITEMScode = (xmlItems=='') ? Object.keys(itemsInfo["itemname"]) : xmlItems  // All ITEMS or XML items on First Loading
+			ItemGroup = itemsInfo["itemgroup"] // Group Names & Codes
+			for (i=0; i<ITEMScode.length; i++) // Get Added Items
+			{	code=ITEMScode[i]; checkcode = (xmlItems=='') ? document.getElementById(code+'_code') : code
+				if  (checkcode)
+				{	grp = '<optgroup label="'+ItemGroup[code.slice(0,6)]+'">'
+					if  (! RemoveItemsOpt.includes(grp)) RemoveItemsOpt.push(grp)
+					RemoveItemsOpt.push('<option value="'+code+'">'+itemsInfo['itemname'][code]+'</option>')
+				}
+			}	
+			RemoveItemsOpt = optionMenuTitle((RemoveItemsOpt.length-Object.keys(ItemGroup).length),html=1) + RemoveItemsOpt.join(' ')
+			RemoveItemMenu='<td id="removeitemtable"><select style="max-width:100%;" id="removeitemmenu">'+RemoveItemsOpt+'</select></td>'
+			if (refresh==1)
+			{	if (document.getElementById('removeitemtable')) document.getElementById('removeitemtable').remove()
+				insertTag = document.getElementById('removeitembutton');
+				insertTag.insertAdjacentHTML("beforebegin", RemoveItemMenu);
+			}
+			else  return RemoveItemMenu
+		}
+		
+			
+		// Shows XML File Info
+		function loadData()
+		{	var xmlfile = document.getElementById('xmlfile').files[0] ;
+			
+			var reader = new FileReader(); reader.onload = function()
+			{	parser = new DOMParser(); xmlDoc = parser.parseFromString(reader.result,"text/xml");
+
+				elements = [...xmlDoc.getElementsByTagName("PTemp")]
+				//[ State, Town, Week, QTN, User, month, year ] = getXMLInfo(xmlDoc)
+				State = elements[1].getElementsByTagName("stat_code")[0].textContent; Town = elements[1].getElementsByTagName("town_code")[0].textContent
+				Week = elements[1].getElementsByTagName("Week")[0].textContent; QTN = elements[1].getElementsByTagName("quotation_code")[0].textContent; User = elements[1].getElementsByTagName("User")[0].textContent; 
+				month = elements[1].getElementsByTagName("MM")[0].textContent; year = elements[1].getElementsByTagName("YY")[0].textContent
+				/*
+				Month=parseFloat(month); date = new Date(); monthsMenu=''
+				for (i=-1;i<4;i++) { date.setMonth(Month+i); monthsMenu+='<option value="'+(date.getMonth()+1)+'-'+date.getFullYear()+'">'+date.toLocaleString('default',{month: 'long'})+'-'+date.getFullYear()+'</option>' }
+				date.setMonth(Month-1);  fileMonth = date.toLocaleString('default',{month: 'long'})+'-'+date.getFullYear()
+				*/
+				
+				Month=parseFloat(month); date = new Date(); monthsMenu=''; yearMenu=''
+				//for (i=-1;i<4;i++) { date.setMonth(Month+i); monthsMenu+='<option value="'+(date.getMonth()+1)+'-'+date.getFullYear()+'">'+date.toLocaleString('default',{month: 'long'})+'-'+date.getFullYear()+'</option>' }
+				for (i=-1;i<11;i++) { date.setMonth(Month+i); monthsMenu+='<option value="'+(date.getMonth()+1)+'">'+date.toLocaleString('default',{month: 'long'})+'</option>' }
+				for (i=2021;i<2026;i++) { yearMenu+='<option value="'+i+'">'+i+'</option>' }
+				date.setMonth(Month-1);  fileMonth = date.toLocaleString('default',{month: 'long'})+'-'+year   //date.getFullYear()
+				
+				
+				changedate=xmlfile.lastModifiedDate.toString().slice(0,-31)
+				if  (confirm('\n        Load XML File : '+xmlfile.name
+							+'\n\n        	  Quotation : '+QTN
+							+'\n                  Month : '+fileMonth
+							+'\n\n        Last Modified : '+LastChange(changedate)[0]+' ('+changedate+')\n\n' ))
+				{	xmlFileInfo = ''    // Show File Info
+					// Remove & Refresh Table Elements
+					tables = [ 'InfoTable', 'EditSaveTable', 'EntryTable', 'DeleteButton']
+					for  (i in tables)
+					{	tableElement = document.getElementById(tables[i])
+						if (tableElement)	tableElement.remove()		}
+					//entryMonth = (Month != 12) ? Month+1 : 1 ;  monthsOpt={};  monthsOpt[(date.getMonth()+1)+'-'+date.getFullYear()]=date.toLocaleString('default',{month: 'long'})+'-'+date.getFullYear()     +'&nbsp;&nbsp;&nbsp;&nbsp;'
+
+					InfoTable = '<div id="InfoTable"><div class="tablerow"><div class="tablecolumn" id="tableinfo">'
+								+'<br><table id="tableInfo"><tr><td colspan="2"> Quotation : '+QTN+'</td><td> Week : '+Week+'</td></tr>'
+									//+ '<tr><td>Select Entry Month:</td><td colspan="2">'+'<select id="monthsmenu">'+monthsMenu+'</select></td></tr>'
+									+ '<tr><td>Select Entry Month:</td><td>'+'<select id="monthsmenu">'+monthsMenu+'</select></td><td>'+'<select id="yearmenu">'+yearMenu+'</select></td></tr>'
+									+ '<tr><td>State: '+State+'</td><td>Town: '+Town+'</td><td>User: '+User+'</td></tr></table></div></div>'
+								+'<br><br> <button id="EntryButton" class="large" onclick="enterData()">Enter Data</button></div>'
+								
+					insertTag = document.getElementById('LoadButton');
+					insertTag.insertAdjacentHTML("afterend", InfoTable); date = new Date()
+					//document.getElementById('monthsmenu').value = (date.getMonth()+1)+'-'+date.getFullYear() // Select Current Month as Entry Month
+					document.getElementById('monthsmenu').value = (date.getMonth()+1) // Select Current Month as Entry Month
+					document.getElementById('yearmenu').value = date.getFullYear() // Select Current Month as Entry Month
+					
+				}
+
+			}; reader.readAsText(xmlfile);
+		}
+
+
+
+		//if (confirm('\n           🔍    Found Data of  "'+elements.length+' Items".'+''+'\n\n              ◉  Start Filling ❓'))
+		// Creates Entry Table for Data Entry
+		function enterData()
+		{	var xmlfile = document.getElementById('xmlfile').files[0]; changedate=xmlfile.lastModifiedDate.toString().slice(0,-31)
+			var reader = new FileReader(); reader.onload = function()
+			{	parser = new DOMParser(); xmlDoc = parser.parseFromString(reader.result,"text/xml")
+				Run=false; samefile=false
+				elements = [...xmlDoc.getElementsByTagName("PTemp")]
+				//[ State, Town, Week, QTN, User, month, year ] = getXMLInfo(xmlDoc)
+				State = elements[1].getElementsByTagName("stat_code")[0].textContent; Town = elements[1].getElementsByTagName("town_code")[0].textContent
+				Week = elements[1].getElementsByTagName("Week")[0].textContent; QTN = elements[1].getElementsByTagName("quotation_code")[0].textContent; User = elements[1].getElementsByTagName("User")[0].textContent; 
+				xmlmonth = elements[1].getElementsByTagName("MM")[0].textContent; xmlYear = elements[1].getElementsByTagName("YY")[0].textContent
+				//monthYear = document.getElementById('monthsmenu').value.split('-');  month=parseFloat(monthYear[0]); Year=parseFloat(monthYear[1])  // Get Selected Month
+				month = document.getElementById('monthsmenu').value; Year=document.getElementById('yearmenu').value
+				if  ((parseInt(xmlmonth)==parseInt(month))&&(parseInt((xmlYear))==parseInt(Year))) samefile=true ; fileedit = (samefile) ? 'EDIT ' : '     '
+				console.log('month:',xmlmonth,month,' : Year:',xmlYear,Year,' ==> SAME #######',samefile)
+				date = new Date(); date.setMonth(parseFloat(month)-1)
+				MonthName=date.toLocaleString('default',{month: 'short'});  // MONTH = MONTH.padStart(2, "0");
+				FileName = 'ExpPrice'+State+Town+QTN+MonthName+Year+'-'+User.padStart(4, "0")+'.XML'
+				FileData = localStorage.getItem(FileName)
+				if (FileData)
+				{	xmlDoc = parser.parseFromString(FileData,"text/xml") // Load from Saved Data
+					elements = [...xmlDoc.getElementsByTagName("PTemp")]
+					QTN = elements[1].getElementsByTagName("quotation_code")[0].textContent; User = elements[1].getElementsByTagName("User")[0].textContent; 
+					lsmonth = elements[1].getElementsByTagName("MM")[0].textContent; lsYear = elements[1].getElementsByTagName("YY")[0].textContent
+					//monthYear = document.getElementById('monthsmenu').value.split('-');  month=parseFloat(monthYear[0]); Year=parseFloat(monthYear[1])  // Get Selected Month
+					month = document.getElementById('monthsmenu').value; Year=document.getElementById('yearmenu').value
+					if  ((parseInt(lsmonth)==parseInt(month))&&(parseInt(lsYear)==parseInt(Year))) samefile=true ; fileedit = (samefile) ? ' EDIT ' : 'Found'
+					//if  ((lsmonth==month)&&(lsYear==Year)) samefile=true ; fileedit = (samefile) ? ' EDIT ' : 'Found'
+					console.log('month:',lsmonth,month,' : Year:',lsYear,Year,' ==> SAME #######',samefile)
+					date = new Date(); date.setMonth(parseFloat(month)-1); MonthName=date.toLocaleString('default',{month: 'short'}); 
+					if  (confirm('\n     🔍  '+fileedit+' SAVED File : "'+FileName+'"' //+((samefile) ? ' for EDITING' : '')
+							  +'\n\n                 Quotation : '+QTN
+							    +'\n              Entry Month : '+MonthName+'-'+Year
+							   // +'\n\n              Item Order File : '+MonthName+'-'+Year
+								//+'\n\n    Last Modified: '+xmlfile.lastModifiedDate.toString().slice(0,-30)
+							  +'\n\n              ◉  Load Data of SAVED File  from BrowserStorage ❓\n      ( → To Load data from XML File, First Delete saved data using \'Clear Saved Data\' button. )' ))
+					{	State = elements[1].getElementsByTagName("stat_code")[0].textContent; Town = elements[1].getElementsByTagName("town_code")[0].textContent
+						Week = elements[1].getElementsByTagName("Week")[0].textContent; Run=true }
+				}
+				else  if (confirm(	'\n        '+fileedit+' XML File : "'+xmlfile.name+'"' //+((samefile) ? ' for EDITING' : '')
+							+'\n\n             Quotation : '+QTN
+							+'\n         Entry Month : '+MonthName+'-'+Year
+							+'\n      Last Modified : '+LastChange(changedate)[0]+' ('+changedate+')'
+							+'\n\n              ◉  Load Data from XML File ❓ \n' ))  Run=true 
+
+				if (Run)
+				{	xmlItems=[]; itemHTML=''
+					orderfile = document.getElementById('orderfile').files[0] ;
+					if  (orderfile==undefined)
+					{
+						for (i=0; i<elements.length; i++)
+						{	code = elements[i].getElementsByTagName("it_code")[0].textContent; xmlItems.push(code)
+							qty  = elements[i].getElementsByTagName("obs_qty")[0].textContent
+							unit = elements[i].getElementsByTagName("unit")[0].textContent
+							price = elements[i].getElementsByTagName("price")[0].textContent
+							
+							date = (elements[i].getElementsByTagName("Date")[0]==undefined)? getDateTime() : elements[i].getElementsByTagName("Date")[0].textContent
+							//date = elements[i].getElementsByTagName("Date")[0].textContent; remarks = elements[i].getElementsByTagName("Remarks")[0].textContent
+							remarks = (elements[i].getElementsByTagName("Remarks")[0]==undefined)? 0 : elements[i].getElementsByTagName("Remarks")[0].textContent
+
+							timeAgo = [ '', 'color:#595353; font-weight:bold' ] //LastChange(date)
+							itemHTML += '<tr id="item_'+code+'"> <td class="item_sno" style="width:'+colWidth[0]+'%">'+(i+1)+'.</td>' + '<td id="'+code+'_code" style="display:none">'+code+'</td>' 
+							+ '<td id="'+code+'_name">'+itemsInfo['itemname'][code]+'</td>'
+							//+ '<td id="'+code+'_qty">'+qty+'</td>' + '<td id="'+code+'_unit">'+itemsInfo['unitcode'][unit]+'</td>'
+							+ '<td id="'+code+'_qty" ondblclick="editQtyUnit(\''+code+'\')" >'+qty+'</td>' + '<td id="'+code+'_unit" ondblclick="editQtyUnit(\''+code+'\')" >'+itemsInfo['unitcode'][unit]+'</td>'
+							+ '<td ><input type="text" id="'+code+'_price" oninput="setRemarks(\''+code+'\')" value="'+price+'" class="large" ></td>'
+							+ '<td  id="'+code+'_date" style="'+timeAgo[1]+'">'+timeAgo[0]+' : ₹ '+price+'</td>'
+							+ '<td  id="'+code+'_variation">  </td>'
+							+ '<td ><select style="max-width:100%;" id="'+code+'_remarks" onchange="setRemarkCodes(\''+code+'\')">'+RemarksMenu+'</select> </td>'
+							//+ '<td  value="0" id="'+code+'_splcode">'+0+'</td>'
+							+ '<td ><select style="max-width:100%;" id="'+code+'_splcode" >'+SplCodeMenu+'</select> </td>'
+							//+ '<td ><select style="max-width:100%;" id="'+code+'_splcode" onchange="onchangeSplCode(\''+code+'\')">'+SplCodeMenu+'</select> </td>'
+							+ '<td  value="0" id="'+code+'_prevprice1"></td>'
+							+ '<td  value="0" id="'+code+'_prevprice2"></td>'
+							+'</tr>'
+						}
+					}
+					else  // Custom ordered Items of Entry Table
+					{	itemOrder = JSON.parse(itemOrder); xmlElements={}; ITEMScode = Object.keys(itemsInfo["itemname"]); n=0
+						for (i=0; i<elements.length; i++) xmlElements[elements[i].getElementsByTagName("it_code")[0].textContent] = elements[i]
+						xmlItems = Object.keys(xmlElements) // Items in XML
+						for(i=0; i<itemOrder.length; i++)
+						{	if  (xmlItems.includes(itemOrder[i]))
+							{	element = xmlElements[itemOrder[i]]
+								code = element.getElementsByTagName("it_code")[0].textContent
+								qty  = element.getElementsByTagName("obs_qty")[0].textContent
+								unit = element.getElementsByTagName("unit")[0].textContent
+								price = element.getElementsByTagName("price")[0].textContent
+								
+								date = (element.getElementsByTagName("Date")[0]==undefined)? getDateTime() : element.getElementsByTagName("Date")[0].textContent
+								//date = element.getElementsByTagName("Date")[0].textContent
+								remarks = (element.getElementsByTagName("Remarks")[0]==undefined)? 0 : element.getElementsByTagName("Remarks")[0].textContent
+
+								
+
+								timeAgo = LastChange(date);  n+=1; SNO = n + ' ('+(ITEMScode.indexOf(code)+1)+').' 
+								itemHTML += '<tr id="item_'+code+'"> <td class="item_sno" style="width:'+colWidth[0]+'%">'+SNO+'</td>' + '<td id="'+code+'_code" style="display:none">'+code+'</td>' 
+								+ '<td id="'+code+'_name">'+itemsInfo['itemname'][code]+'</td>'
+								+ '<td id="'+code+'_qty">'+qty+'</td>' 
+								+ '<td id="'+code+'_unit">'+itemsInfo['unitcode'][unit]+'</td>'
+								+ '<td ><input type="text" id="'+code+'_price" oninput="setRemarks(\''+code+'\')" value="'+price+'" class="large" ></td>'
+								+ '<td  id="'+code+'_date" style="'+timeAgo[1]+'">'+timeAgo[0]+' : ₹ '+price+'</td>'
+								+ '<td  id="'+code+'_variation">  </td>'
+								+ '<td ><select style="max-width:100%;" id="'+code+'_remarks" onchange="setRemarkCodes(\''+code+'\')">'+RemarksMenu+'</select> </td>'
+								//+ '<td  value="0" id="'+code+'_splcode">'+0+'</td>'
+								+ '<td ><select style="max-width:100%;" id="'+code+'_splcode">'+SplCodeMenu+'</select> </td>'
+								+ '<td  value="0" id="'+code+'_prevprice1"></td>'
+								+ '<td  value="0" id="'+code+'_prevprice2"></td>'
+								+'</tr>'
+							}
+						}
+					}
+					
+					//TableColumnHeadings = '<tr> <th>' + colName.join('</th> <th>') + '</tr>'
+					TableColumnHeadings = ''
+					for (j=0; j<colName.length;j++) TableColumnHeadings+=' <th style="width:'+colWidth[j]+'%">'+colName[j]+'</th>'
+					TableColumnHeadings = '<tr>' + TableColumnHeadings + '</tr>'
+					
+					itemTable = '<table id="EntryTable">'+ TableColumnHeadings +itemHTML+ '</table>'
+								+'<br><button id="DeleteButton" class="large" style="float:right" onclick="ClearSavedData()">Clear Saved Data</button>'
+					
+					// Add-Items Menu
+					toAddItems=[]; AddItemsOpt=''; ITEMScode = Object.keys(itemsInfo["itemname"]) // All ITEMS
+					for (i=0; i<ITEMScode.length; i++) // Get Added Items
+					{	code=ITEMScode[i]
+						if (! xmlItems.includes(code)) toAddItems.push(code)
+					}
+					for (i in  toAddItems)  AddItemsOpt+='<option value="'+toAddItems[i]+'">'+itemsInfo['itemname'][toAddItems[i]]+'</option>'
+					AddItemsOpt = optionMenuTitle(toAddItems.length,html=1,id='removedupdateditem') + AddItemsOpt
+					// <caption>Add/Remove Item</caption>
+					// <div id="EditSaveTable">  </div>
+					EditItemMenu='<div class="tablecolumn"><table id="tableEdit"><tr id="additemtable">'+'<td><select style="max-width:100%;" id="additemmenu">'+AddItemsOpt+'</select></td><td><button class="large" onclick="addItem()">Add Item</button></td></tr>'
+								+ '<tr>'+removeItemMenu(refresh=0,xmlItems=xmlItems)+'<td id="removeitembutton"><button class="large" onclick="removeItem()">Remove Item</button></td></tr></table></div>'
+					itemTable = '&nbsp; <button id="DownloadButton" class="large" style="float:right" onclick="DownloadData()">Download Data</button>'
+								+'<button id="SaveButton" class="large" style="float:right" onclick="SaveData()">Save Data</button>'
+								+'<p id="SaveFileName"  style="float:right"></p>'
+								+ itemTable
+					// Remove Previous Data
+					//tables = [ 'InfoTable', 'EditSaveTable', 'EntryTable', 'DeleteButton']
+					tables = [ 'tableEdit', 'DownloadButton', 'SaveButton', 'SaveFileName', 'EntryTable', 'DeleteButton']
+					for  (i in tables)
+					{	tableElement = document.getElementById(tables[i])
+						if (tableElement)	tableElement.remove()		}
+					if([...document.getElementsByClassName('tablecolumn')][1])  [...document.getElementsByClassName('tablecolumn')][1].remove()
+					// Add New Tables
+					document.getElementById('tableinfo').insertAdjacentHTML("afterend", EditItemMenu); // Add Edit & Save Buttons
+					insertTag = document.getElementById('EntryButton'); // Add Entry Table
+					insertTag.insertAdjacentHTML("afterend", itemTable);
+					document.getElementById('SaveFileName').innerText = 'Current File - '+FileName // Update Entry File Name
+					
+					if (samefile) // Fill Saved Data
+					{	for (i=0; i<elements.length; i++)
+						{	code = elements[i].getElementsByTagName("it_code")[0].textContent
+							document.getElementById(code+'_remarks').value = elements[i].getElementsByTagName("Remarks")[0].textContent // Fill Remarks
+							document.getElementById(code+'_splcode').value = elements[i].getElementsByTagName("spl_code")[0].textContent // Special Code
+							if (document.getElementById(code+'_splcode').value==2)
+							{	document.getElementById(code+'_prevprice1').insertAdjacentHTML("beforeend", '<input type="text" value="'+elements[i].getElementsByTagName("prv_price1")[0].textContent+'">') 
+								document.getElementById(code+'_prevprice2').insertAdjacentHTML("beforeend", '<input type="text" value="'+elements[i].getElementsByTagName("prv_price2")[0].textContent+'">')
+							}
+						}
+					}
+
+				}
+	
+			}; reader.readAsText(xmlfile);
+		}
+
+
+		function addItem()
+		{   alert('\n   ➤  Check the Item name carefully before adding it to XML file.')
+
+			code = document.getElementById('additemmenu').value ; timeAgo = LastChange((new Date()));  price='0'; orderfile = document.getElementById('orderfile').files[0] ;
+			
+			if  ((code!='000000')&&(confirm('\n       ◉    Continue to Add Item : \''+itemsInfo['itemname'][code]+'\' ❓')))
+			{
+				// Get Insert Location
+				ITEMScode = (orderfile==undefined) ? Object.keys(itemsInfo["itemname"]) : itemOrder // All ITEMS
+				xmlItems=[...document.querySelectorAll('[id$="_code"]')].map(function(x){return x.id.replace('_code','')})
+				
+				itemPosition=-1
+				for (i=0; i<ITEMScode.length; i++) // Get Added Items
+				{	if (xmlItems.includes(ITEMScode[i]))  itemPosition=ITEMScode[i]
+					if (ITEMScode[i+1]==code)  break; 
+				}
+				
+				// unit & qty Field for New Item
+				// '<td id="'+code+'_qty" ondblclick="editQtyUnit(\''+code+'\')" >'+qty+'</td>' + '<td id="'+code+'_unit" ondblclick="editQtyUnit(\''+code+'\')" >'+itemsInfo['unitcode'][unit]+'</td>'
+				
+				unitcodeopt=''; for (ucode in itemsInfo['unitcode']) unitcodeopt+='<option value="'+ucode+'">'+itemsInfo['unitcode'][ucode]+'</option>'
+				unitcodeMenu='<select id="'+code+'_unit">'+unitcodeopt+'</select>'
+				qtyInput='<input type="text" id="'+code+'_qty" value="'+price+'" class="large" >'
+				// Item Row HTML 
+				SNO = (orderfile==undefined) ? (i+1) : (i+1) + ' ('+(ITEMScode.indexOf(code)+1)+').'
+
+				itemHTML = '<tr id="item_'+code+'"> <td class="item_sno" style="width:'+colWidth[0]+'%">'+SNO+'</td>' + '<td id="'+code+'_code" style="display:none">'+code+'</td>' 
+							+ '<td id="'+code+'_name">'+itemsInfo['itemname'][code]+'</td>'
+							+ '<td>'+qtyInput+'</td>' 
+							+ '<td >'+unitcodeMenu+'</td>'
+							+ '<td ><input type="text" id="'+code+'_price" oninput="setRemarks(\''+code+'\')" value="'+price+'" class="large" ></td>'
+							+ '<td id="'+code+'_date" style="'+timeAgo[1]+'">'+timeAgo[0]+' : ₹ '+price+'</td>'
+							+ '<td id="'+code+'_variation">  </td>'
+							+ '<td ><select style="max-width:100%;" id="'+code+'_remarks" onchange="setRemarkCodes(\''+code+'\')">'+RemarksMenu+'</select> </td>'
+							//+ '<td  value="0" id="'+code+'_splcode">'+0+'</td>'
+							+ '<td ><select style="max-width:100%;" id="'+code+'_splcode">'+SplCodeMenu+'</select> </td>'
+							+ '<td  value="0" id="'+code+'_prevprice1"></td>'
+							+'<td   value="0" id="'+code+'_prevprice2"></td>'
+				itemPosition = (itemPosition != -1) ? itemPosition : xmlItems[xmlItems.length-1]
+				console.log(itemPosition)
+				// Insert Item 
+				insertTag = document.getElementById('item_'+itemPosition);
+				insertTag.insertAdjacentHTML("afterend", itemHTML);
+				// Update SNo
+				updateItemSNo()
+				//Show Added Item
+				document.getElementById('item_'+code).scrollIntoView({behavior: 'smooth'}); document.getElementById('item_'+code).focus();
+				// Update Both Selection Menus
+				updateAddItemMenu(code,hide=1)
+				removeItemMenu(refresh=1,xmlItems='') // Refresh RemoveItems Menu
+			}
+		}
+
+		function removeItem()
+		{	code = document.getElementById('removeitemmenu').value
+			if (code!='000000')
+			{ 	itemName = document.getElementById(code+'_name').innerText
+				if (confirm('\n\n           Remove Item : '+itemName+'  ❓ \n'))
+				{	updateAddItemMenu(code,hide=0)
+					document.getElementById('item_'+code).remove() // Remove Item from Entry Table
+					removeItemMenu(refresh=1,xmlItems='') // Update RemoveItems Menu
+					updateItemSNo() // Update Item SNo. in Entry Table
+					alert('\n\n           Item "'+itemName+'"   Removed.\n')
+				}
+			}
+		}
+		
+		// Change Unit & Quantity
+		function editQtyUnit(code)
+		{	[item, qty, unit] = [document.getElementById(code+'_name').innerText, document.getElementById(code+'_qty').innerText, document.getElementById(code+'_unit').innerText]
+			if (qty!='') // if Qty Label
+			{	if  (confirm('\n\n      For  \''+item+'\'  Change  ?\n\n              Quantity : '+qty+'\n              Unit : '+unit+'\n'))
+				{   document.getElementById(code+'_qty').innerText=''; document.getElementById(code+'_unit').innerText=''
+					document.getElementById(code+'_qty').insertAdjacentHTML("beforeend", '<input type="text" style="width:4em" value="'+qty+'">')
+
+					document.getElementById(code+'_unit').insertAdjacentHTML("beforeend", getUnitMenu(code))
+					for (ucode in itemsInfo['unitcode']) if (itemsInfo['unitcode'][ucode]==unit) break;
+					document.getElementById(code+'_unit').getElementsByTagName("select")[0].value = ucode
+				}
+			}
+			else
+			{	[qty, unitcode] = [ document.getElementById(code+'_qty').getElementsByTagName("input")[0].value, document.getElementById(code+'_unit').getElementsByTagName("select")[0].value ] 
+				document.getElementById(code+'_qty').getElementsByTagName('input')[0].remove()
+				document.getElementById(code+'_unit').getElementsByTagName('select')[0].remove()
+				document.getElementById(code+'_qty').innerText = qty
+				document.getElementById(code+'_unit').innerText = itemsInfo['unitcode'][unitcode]
+			}
+		}
+		
+		selectUnitW='6em';
+		function getUnitMenu(code)
+		{	unitcodeopt=''; for (ucode in itemsInfo['unitcode']) unitcodeopt+='<option value="'+ucode+'">'+itemsInfo['unitcode'][ucode]+'</option>'
+			unitcodeMenu='<select style="width:'+selectUnitW+'" id="'+code+'_unit">'+'<option value="-1">Select Unit</option>'+unitcodeopt+'</select>'
+			return unitcodeMenu
+		}
+
+		function getUnitCode(code)
+		{	unit = document.getElementById(code+'_unit').innerText
+			for (ucode in itemsInfo['unitcode']) if (itemsInfo['unitcode'][ucode] == unit)   return ucode		
+		}
+		
+		function updateAddItemMenu(code,hide=0)
+		{	status = (hide==0) ?  '' : "display:none" // Show or Hide 
+			toadditemsOpt=[...document.getElementById('additemmenu').getElementsByTagName('option')] ; toaddItems=[] ; n=-1 // Get toAdd Items
+			for (i in toadditemsOpt) toaddItems.push(toadditemsOpt[i].value)
+			if  (! toaddItems.includes(code))
+			{	itemOpt = '<option value="'+code+'">'+itemsInfo['itemname'][code]+'</option>'
+				insertTag = document.getElementById('removedupdateditem');
+				insertTag.insertAdjacentHTML("afterend", itemOpt);
+				toadditemsOpt=[...document.getElementById('additemmenu').getElementsByTagName('option')] ;
+			}
+			for (i in toadditemsOpt)
+			{	if  (toadditemsOpt[i].value==code) toadditemsOpt[i].style=status // Hide Added ITem
+				if  (toadditemsOpt[i].style.display=='')  n+=1 } // count remaining items
+			document.getElementById('additemmenu').value='000000'; toadditemsOpt[0].innerText = optionMenuTitle(n,html=0)
+		}
+
+		// Update Item SNo if Entry Table is Edited
+		function updateItemSNo()
+		{	itemSNo=[...document.getElementsByClassName('item_sno')] ; n=1
+			orderfile = document.getElementById('orderfile').files[0] ;  ITEMScode = Object.keys(itemsInfo["itemname"])
+			
+			if (orderfile==undefined)
+				for (i in itemSNo)
+				{	itemSNo[i].innerText = (n+'.') ; n++ ; }
+			else
+				for (i in itemSNo)
+				{	sno = itemSNO[itemSNo[i].nextElementSibling.innerText] // Get Current Item Code
+					itemSNo[i].innerText =  (n) + ' ('+sno+').' ; n++ ;
+				}	
+		}
+
+		tvar='';
+		function SaveData(silent=false)
+		{	entryTable=document.getElementById('EntryTable')
+			if  (entryTable!=null)
+			{	xmlfile = document.getElementById('xmlfile').files[0]
+				var reader = new FileReader(); reader.onload = function()
+				{	parser = new DOMParser(); xmlDoc = parser.parseFromString(reader.result,"text/xml") // Read XML Data from File as string & Parse it
+					
+					elements = [...xmlDoc.getElementsByTagName("PTemp")] ; 	xmlElements={}; changesCount=0
+					for (i=0; i<elements.length; i++) xmlElements[elements[i].getElementsByTagName("it_code")[0].textContent] = elements[i] // XML code-element Object		
+
+					State = elements[1].getElementsByTagName("stat_code")[0].textContent; Town = elements[1].getElementsByTagName("town_code")[0].textContent
+					Week = elements[1].getElementsByTagName("Week")[0].textContent; QTN = elements[1].getElementsByTagName("quotation_code")[0].textContent; User = elements[1].getElementsByTagName("User")[0].textContent;
+					//[ MONTH, YEAR ] = document.getElementById('monthsmenu').value.split('-');
+					MONTH = document.getElementById('monthsmenu').value; YEAR=document.getElementById('yearmenu').value
+					date = new Date(); date.setMonth(parseFloat(MONTH)-1)
+					MonthName=date.toLocaleString('default',{month: 'short'});  MONTH = MONTH.padStart(2, "0");
+
+					FileName = 'ExpPrice'+State+Town+QTN+MonthName+YEAR+'-'+User.padStart(4, "0")+'.XML'
+					ITEMScode = Object.keys(itemsInfo["itemname"]) // All ITEMS
+					xmlItems = Object.keys(xmlElements) // Items in XML
+					// xmlDoc.getElementsByTagName('book')[0].setAttribute("edition","first");
+					for (i=0; i<ITEMScode.length; i++) // Get Added Items
+					{	code = ITEMScode[i]; 
+						if  (document.getElementById(code+'_price')) // Check Entered Price is Valid & Number
+							if (isNaN(Number(document.getElementById(code+'_price').value)))
+							{	document.getElementById(code+'_price').scrollIntoView({behavior: 'smooth'}); document.getElementById(code+'_price').focus();
+								if (silent) showToast('Failed to Save Data due to INVALID Price of "'+itemsInfo["itemname"][code]+'" !!!')
+								else alert('\n\n        Failed to Save Data due to INVALID Price !!!\n\n        Check Price of "'+itemsInfo["itemname"][code]+'" .\n\n'); break
+							}
+
+						if  ((document.getElementById(code+'_code')) && (xmlItems.includes(code)))  // If Item is in both Entry Table & XML File : Update Data
+						{	xmlItemElement = xmlElements[code]
+							xmlElements[code].getElementsByTagName("MM")[0].textContent = MONTH // Update Month
+							xmlElements[code].getElementsByTagName("YY")[0].textContent = YEAR // Update Year
+							xmlElements[code].getElementsByTagName("price")[0].textContent = document.getElementById(code+'_price').value // Get Price Data from EntryTable using code
+							xmlElements[code].getElementsByTagName("Remarks")[0].textContent = document.getElementById(code+'_remarks').value // Get Remarks Data from EntryTable using code
+							xmlElements[code].getElementsByTagName("spl_code")[0].textContent = document.getElementById(code+'_splcode').value // Get Special code from EntryTable
+							
+
+							// If Unit & Qty Edited
+							if (document.getElementById(code+'_qty').innerText=='')
+							{	xmlElements[code].getElementsByTagName("obs_qty")[0].textContent = document.getElementById(code+'_qty').getElementsByTagName('input')[0].value
+								if (document.getElementById(code+'_unit').getElementsByTagName('select')[0].value != -1)
+								xmlElements[code].getElementsByTagName("unit")[0].textContent = document.getElementById(code+'_unit').getElementsByTagName('select')[0].value
+								else
+								{	alert('\n\n        Failed to Save Data due to INVALID Unit !!!\n\n        Select Valid Unit of "'+itemsInfo["itemname"][code]+'" .\n\n'); 	    
+								    document.getElementById(code+'_unit').scrollIntoView({behavior: 'smooth'}); document.getElementById(code+'_unit').focus(); saveIt=false; break
+								}
+							}
+							else { 	xmlElements[code].getElementsByTagName("obs_qty")[0].textContent = document.getElementById(code+'_qty').innerText;
+									xmlElements[code].getElementsByTagName("unit")[0].textContent = getUnitCode(code) ;
+								 }
+
+							// On Price Change
+							if (document.getElementById(code+'_price').value != document.getElementById(code+'_date').innerText.split('₹ ')[1])
+							{	xmlElements[code].getElementsByTagName("Date")[0].textContent = getDateTime() // Update Date if Price is changed
+								changesCount+=1
+							}
+							
+							if (document.getElementById(code+'_splcode').value==2)
+							{	xmlElements[code].getElementsByTagName("prv_price1")[0].textContent = document.getElementById(code+'_prevprice1').getElementsByTagName("input")[0].value
+								xmlElements[code].getElementsByTagName("prv_price2")[0].textContent = document.getElementById(code+'_prevprice2').getElementsByTagName("input")[0].value
+							}		
+						}
+						// ((document.getElementById(code+'_prevprice1').innerText=='') ? 0:document.getElementById(code+'_prevprice1').value)
+						else if ((document.getElementById(code+'_code')) && (! xmlItems.includes(code))) // If Item in Entry Table but Not in XML file : Add ITEM
+						{   subElements = { 'stat_code':State, 'town_code':Town, 'quotation_code':QTN, 'it_code':code, 'MM':MONTH,'YY':YEAR,
+							'unit':document.getElementById(code+'_unit').value, 'obs_qty':document.getElementById(code+'_qty').value,
+							'price':document.getElementById(code+'_price').value, 'spl_code':document.getElementById(code+'_splcode').value, 'est_code':'0',
+							'prv_price1': ((document.getElementById(code+'_splcode').value!=2) ? 0 : document.getElementById(code+'_prevprice1').getElementsByTagName("input")[0].value), 'prv_price2':((document.getElementById(code+'_splcode').value!=2) ? 0 : document.getElementById(code+'_prevprice2').getElementsByTagName("input")[0].value), 'User':User,
+							'Date':getDateTime(), 'Week':Week, 'NA':'0', 'Subgrp_code':code[0]+code.slice(4,6), 'Remarks':document.getElementById(code+'_remarks').value }
+							
+							/**
+							for (subEle in subElements)
+							{	subElemt = xmlDoc.createElement(subEle);
+								subElemTxt = xmlDoc.createTextNode(subElements[subEle]);
+								subElemt.appendChild(subElemTxt);								
+							}
+							MainElemt = xmlDoc.createElement("PTemp");							
+							MainElemt.appendChild(subElemt);
+							xmlItemElement.parentNode.insertBefore(MainElemt, xmlItemElement.nextSibling); **/
+
+							MainElemt = xmlDoc.createElement("PTemp");
+							for (subEle in subElements)	MainElemt.appendChild(createSubElement(subEle,subElements[subEle]));
+							xmlItemElement.parentNode.insertBefore(MainElemt, xmlItemElement.nextSibling);
+						}
+						else if (! document.getElementById(code+'_code')) // If Item not in Entry Table : Delete from XML data
+						{	elms = [...xmlDoc.getElementsByTagName("PTemp")] ;
+							for (j=0; j<elms.length; j++)
+							{  if  (elms[j].getElementsByTagName("it_code")[0].textContent == code) // XML code-element
+								 { [...xmlDoc.childNodes][0].removeChild(elms[j])
+									console.log(' -Removed Item: '+code)
+								 }
+							}
+
+						}
+						
+					}
+					xmlData = new XMLSerializer().serializeToString(xmlDoc) // XML data into String for saving as variable in Browser Local Storage
+					SavingStatus = (localStorage.getItem(FileName)==null) ? 'SAVED' : 'UPDATED'
+					localStorage.setItem(FileName, xmlData)
+					changesStatus = (changesCount==0) ? '\n\n   -- NO Price Changes Made.' : '\n\n   -- Price Changes Made: '+changesCount
+					if (! silent) alert(changesStatus+'\n\n   -- Data '+SavingStatus+' in Browser LocalStorage : '+FileName+'\n\n')
+					else showToast(' Data Saved. '+((changesCount==0) ? 'NO Changes Made.' : 'Changes Made:'+changesCount))
+					document.getElementById('SaveFileName').innerText=' Data '+SavingStatus+' on '+date.toTimeString().slice(0,-31)+' - '+FileName
+					
+				}; reader.readAsText(xmlfile);	
+			}
+		 }
+
+		function deleteOldFiles() {
+		   storageLimit=10
+		   
+		   allvariables = { ...localStorage }
+		   variablescount = Object.keys(allvariables).length; variables = []
+		   
+		   for (variable in allvariables)
+		   {  varvalue = localStorage.getItem(variable)
+			  filedate = varvalue.split('generated=')[1].slice(1,17)
+			  variables.push( {name:variable, date : new Date(filedate)} )
+		   }
+		   sortedFiles = variables.sort((objA, objB) => Number(objA.date) - Number(objB.date),)
+		   deletedFiles = sortedFiles.slice(0,sortedFiles.length-storageLimit)
+
+		   if  (deletedFiles.length>storageLimit)
+		   {  for (fno in deletedFiles)
+			  {  fname = deletedFiles[fno]['name']
+				 localStorage.removeItem(fname)
+				 console.log(' - Deleted: ',fname)
+			  }
+		   }
+		}
+
+		function DownloadData()
+		{	FileName = document.getElementById('SaveFileName').innerText.split(' - ')[1]
+			FileData = localStorage.getItem(FileName)
+			if (FileData)
+			{   deleteOldFiles()
+				SaveData(silent=true)
+				start=FileData.indexOf('generated="')+11; end=FileData.indexOf('">')
+				FileData = FileData.slice(0,start) + getDateTime() + FileData.slice(end,) // Update Date
+				var blob = new Blob([FileData], {type: 'text/plain'});
+				a=document.createElement('a'); a.href=window.URL.createObjectURL(blob); a.setAttribute('download',FileName);
+				document.body.appendChild(a);  a.click();  document.body.removeChild(a);
+			}
+			else	alert('\n\n      -- FILE  NOT FOUND !!!\n\n      Use SAVE button to Save Data and Try Again. \n\n')
+		}
+		
+		function ClearSavedData()
+		{	FileName = document.getElementById('SaveFileName').innerText.split(' - ')[1]
+			if (FileName!=undefined)
+			{	if  (confirm('\n\n       Delete Data of SAVED File : "'+FileName+'"\n\n'))
+				{	FileData = localStorage.getItem(FileName)
+					parser = new DOMParser(); xmlDoc = parser.parseFromString(FileData,"text/xml") // Read XML Data from File as string & Parse it					
+					elements = [...xmlDoc.getElementsByTagName("PTemp")] ; 	xmlElements={}
+					State = elements[1].getElementsByTagName("stat_code")[0].textContent; Town = elements[1].getElementsByTagName("town_code")[0].textContent
+					Week = elements[1].getElementsByTagName("Week")[0].textContent; QTN = elements[1].getElementsByTagName("quotation_code")[0].textContent; User = elements[1].getElementsByTagName("User")[0].textContent;
+
+					resp = prompt("\n\n       Enter Correct Quotation No. to Delete File : ");
+					if (resp==QTN)
+					{	localStorage.removeItem(FileName)
+						alert('\n\n      "'+FileName+'"  Deleted.')
+					}
+					else alert('\n\n      Entered Wrong Quotation No. .')
+				}
+			}
+
+		}
+		
+		function showToast(text)
+		{	var x = document.getElementById("snackbar"); // Get the snackbar DIV
+			x.innerText = text
+			x.className = "show"; // Add the "show" class to DIV
+			setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);  // After 3 seconds, remove the show class from DIV
+		}
+		
+		function floatingMenu(title)
+		{
+		
+		}
+
+		/**
+		//window.onbeforeunload = closeAction;
+		window.addEventListener('beforeunload', function (e) { 
+            FileName = document.getElementById('SaveFileName').innerText.split(' - ')[1]
+			alert('\n\n        - Download SAVED File : '+FileName+'\n\n')
+			DownloadData()
+        });
+		**/
+		/**
+		// Action on Window Close
+		var popit = true;
+		window.onbeforeunload = function()
+		{ 	if(popit == true)
+			{	FileName = document.getElementById('SaveFileName').innerText.split(' - ')[1]
+				alert('\n\n        - Download SAVED File : '+FileName+'\n\n')
+				DownloadData()
+			}
+		}
+		function closeAction()
+		{	FileName = document.getElementById('SaveFileName').innerText.split(' - ')[1]
+			alert('\n\n        - Download SAVED File : '+FileName+'\n\n')
+			DownloadData()
+		}
+		**/
+	
+        </script>
+
+        <link rel="stylesheet" href="css/w3.css">
+        <link rel="stylesheet" href="css/w3-theme-blue-grey.css">
+        <link rel="stylesheet" href="css/table.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/main.css">
+        <link rel="stylesheet" href="css/custom.css">
+    </head>
+
+    <body>
+	
+	 <div id="header">
+                <div class="title">
+                <!--  <a href="" target="_blank"><img src="cpiu.png" /></a> -->
+                    <a href="" target="_blank"><h1>CPI Urban</h1></a>
+                </div>
+            </div>
+	<div id="snackbar"></div>
+	
+	
+	<div class="w3-container">
+
+		<div class="w3-bar w3-black">
+			<button class="w3-bar-item w3-button tablink w3-black" onclick=""></button>
+		</div>
+  
+  <div id="menu1" class="w3-container w3-border w3-animate-opacity MENU">
+	<h2 id="menuTitle1">Enter Price Data</h2>
+		<h2 data-i18n="ui.title.scriptLocation">Previous Month XML File :</h2>
+		<div class="filepath-browse-layout">
+			<input type="file" id="xmlfile" accept=".xml,.XML" placeholder="Path to XML file" >
+		</div>
+		<br>
+		<span style="display: none;">
+		<h2 data-i18n="ui.title.scriptLocation">File :</h2>
+		<div class="filepath-browse-layout">
+			<input type="file" id="orderfile" accept=".txt" placeholder="file" >
+		</div></span>
+		<br>
+		<div>
+            <button id="LoadButton" class="large" onclick="loadData()">Load Data</button>
+
+		</div>
+		<br>
+
+  </div>
+
+    </div></body>
+	
+<script>	
+		itemOrder=''
+		async function getText(file)
+		{	const reader = new FileReader();
+			reader.readAsText(file);
+			const result = await new Promise((resolve, reject) => {
+			reader.onload = function(event) { resolve(reader.result) }
+			})
+			itemOrder = result
+		}
+		document.getElementById('orderfile').addEventListener('change', function(e) { getText(e.target.files[0]) })
+</script>
+	
+</html>
